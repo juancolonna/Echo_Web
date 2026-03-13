@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(uuid()) @db.Char(36)
+  name String @db.VarChar(100)
+  email String @unique @db.VarChar(100)
+  password String @db.Char(60)
+  userTypeId String @db.Char(36)
+  userType UserType @relation(fields: [userTypeId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  savedAnalyses SavedAnalysis[]
+  articles      Article[]
+}
+
+model UserType {
+ id String @id @default(uuid()) @db.Char(36)
+ label String @db.VarChar(10)
+ User User[]
+}
+
+model Session {
+  id String @id
+  sid String @unique
+  data String
+  expiresAt DateTime
+}
+
+model SavedAnalysis {
+  id                    String          @id @default(uuid()) @db.Char(36)
+  userId                String          @db.Char(36)
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId                 String          @unique @db.Char(36)
+  analysisType          String          @default("acoustic") @db.VarChar(20)
+  title                 String          @db.VarChar(255)
+  notes                 String?         @db.Text
+  totalAudios           Int?            @db.Int
+  topAcousticRichness   Decimal?        @db.Decimal(10, 6)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  analysisResult        AnalysisResult?
+  microResults          MicroResult[]
+  spectrogramTags       SpectrogramTag[]
+  articles               Article[]
+  
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model AnalysisResult {
+  id               String         @id @default(uuid()) @db.Char(36)
+  analysisId       String         @unique @db.Char(36)
+  savedAnalysis    SavedAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  results          Json
+  createdAt        DateTime       @default(now())
+}
+
+model MicroResult {
+  id               String         @id @default(uuid()) @db.Char(36)
+  analysisId       String         @db.Char(36)
+  savedAnalysis    SavedAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  microJobId       String         @db.Char(36)
+  results          Json
+  createdAt        DateTime       @default(now())
+  
+  @@index([analysisId])
+}
+
+model SpectrogramTag {
+  id               String         @id @default(uuid()) @db.Char(36)
+  analysisId       String         @db.Char(36)
+  savedAnalysis    SavedAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  audioFilename    String         @db.VarChar(255)
+  startTime        Float
+  endTime          Float
+  minFreqHz        Float
+  maxFreqHz        Float
+  species          String         @default("") @db.VarChar(255)
+  numIndividuals   Int            @default(1)
+  type             String         @default("Unknown") @db.VarChar(20)
+  comments         String?        @db.Text
+  color            String         @default("#f472b6") @db.VarChar(20)
+  createdAt        DateTime       @default(now())
+  
+  @@index([analysisId])
+}
+
+model Article {
+  id               String         @id @default(uuid()) @db.Char(36)
+  authorId         String         @db.Char(36)
+  author           User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  analysisId       String?        @db.Char(36)
+  savedAnalysis    SavedAnalysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  title            String         @db.VarChar(255)
+  content          String         @db.LongText
+  published        Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([authorId])
+  @@index([analysisId])
+  @@index([published, createdAt(sort: Desc)])
+}

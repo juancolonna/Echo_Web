@@ -1,0 +1,188 @@
+services:
+  backend-dev: 
+    container_name: backend-dev
+    build:
+      context: ./backend
+      target: development
+    restart: always
+    ports:
+      - ${PORT_BACKEND}:6677
+    volumes:
+      - ./backend:/app
+      - uploads:/app/uploads
+    env_file: ./backend/.env
+    environment:
+      - BENCHMARK_MODE=true        # remover (ou =false) em produção
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - app-network
+
+  frontend-dev: 
+    container_name: frontend-dev
+    build:
+      context: ./frontend
+      target: development
+    restart: always
+    ports:
+      - ${PORT_FRONTEND}:3000
+    volumes:
+      - ./frontend:/app
+    env_file: ./frontend/.env  
+    depends_on:
+      - db
+      - backend-dev
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.4.6-oraclelinux9
+    restart: always
+    ports:
+      - ${PORT_DB}:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}  
+    volumes:
+      - db-data:/var/lib/mysql
+      - db-conf:/etc/mysql/conf.d
+    networks:
+      - app-network  
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.2-apache
+    restart: always
+    ports:
+      - ${PORT_PHPMYADMIN}:80
+    environment:
+      - PMA_HOST=db
+    networks:
+      - app-network  
+
+  rabbitmq:
+    container_name: rabbitmq  
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  sauim-worker:
+    container_name: sauim-worker
+    build:
+      context: ./sauim-worker
+      dockerfile: Dockerfile
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  portainer:
+    image: portainer/portainer-ce
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  worker-coordinator:
+    build: ./worker
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    deploy:
+      replicas: 4
+
+  audio-worker:
+    build: ./worker
+    command: python audio_worker.py
+    volumes:
+      - uploads:/app/uploads
+    environment:
+      - BENCHMARK_MODE=false        # remover (ou =false) em produção
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    deploy:
+      replicas: 4
+
+  micro-worker:                    
+    build: ./worker
+    command: python micro_worker.py
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    deploy:
+      replicas: 2
+
+  spectrogram-worker:              
+    build: ./worker
+    command: python spectrogram_worker.py
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    deploy:
+      replicas: 2
+
+volumes:
+  db-data:
+  db-conf:
+  uploads:
+  portainer_data:
+
+networks:
+  app-network:  
+    driver: bridge
