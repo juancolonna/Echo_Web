@@ -10,10 +10,6 @@ EchoSystem (EchoWeb) — An integrated platform for bioacoustic and micrometeoro
 - Worker-based architecture (audio-worker, micro-worker, spectrogram_worker, etc.) to process items from queues in parallel.
 - Tools for organizing, exporting and publishing analytical reports derived from processed data.
 
-## Key references
-
-This README was created from the project manuscript (Final.tex) included in the repo and the repository sources (backend, frontend, worker). See the paper for the scientific case study, experiment methodology and results (notably: the audio processing worker is the main system bottleneck and scales with additional worker instances).
-
 ## Stack
 
 - Languages: TypeScript (frontend & backend), Python (workers), CSS.
@@ -24,21 +20,6 @@ This README was created from the project manuscript (Final.tex) included in the 
   - Backend: `express`, `prisma`, `fluent-ffmpeg`, `multer`, `sharp`
   - Frontend: `next`, `react`, `plotly.js`
   - Workers: `librosa`, `soundfile`, `scikit-maad`, `metpy`, `numpy`, `scipy`
-
-## Repository layout
-
-Top-level (important entries)
-
-- `backend/`         — TypeScript backend service (Express). entry: `backend/src/index.ts`
-- `frontend/`        — Next.js frontend app (UI).
-- `worker/`          — Python workers for audio/micro/spectrogram processing (`audio_worker.py`, `micro_worker.py`, `spectrogram_worker.py`, etc.)
-- `sauim-worker/`    — (additional worker code; domain-specific)
-- `compose.yml`      — Docker Compose file for local/infrastructure deployment
-- `.env.example`     — global Docker/compose environment example
-- `backend/.env.example`  — backend environment example
-- `frontend/.env.example` — frontend environment example
-- `package.json` (root)  — shared deps / dev deps for tooling
-- `Final.tex`        — manuscript describing system design and experiments
 
 ## How it fits together
 
@@ -132,30 +113,10 @@ Worker containers are provided via `worker/Dockerfile` if you prefer running the
 - If using Docker Compose, ensure env vars (ports, DB credentials) match across frontend/backend .env files.
 - Worker dependencies include scientific Python packages (librosa, numba, scipy, metpy). Use a virtualenv or Docker to manage complex binary deps.
 
-## Contributing
-
-- Issues and PRs are welcome. For code contributions:
-  1. Fork and create a feature branch.
-  2. Run unit/manual checks locally for the backend/front end/workers.
-  3. Open a PR describing the change and any deployment implications (env vars, DB migrations).
-
 ## Acknowledgments & authors
 
-Project and paper authors (from Final.tex): Alcir H. C. Figueiredo, Pedro L. B. Mendes, Marcelo Gordo, Juan G. Colonna. Funding acknowledgments appear in the manuscript (CAPES-PROEX, FAPEAM).
+Project and paper authors: Alcir H. C. Figueiredo, Pedro L. B. Mendes, Marcelo Gordo, Juan G. Colonna.
 
 ## License
 
-No license file is present in the repository root. Add `LICENSE` if you want to make reuse terms explicit.
-
-## Further reading
-
-- See `Final.tex` (manuscript) for the system design, case study (Manaus field deployment), simulation experiments (Poisson arrivals + log-normal workloads) and results showing the processing bottlenecks and how scaling affects E2E and throughput.
-- Worker dependency list: `worker/requirements.txt`
-- Backend entry point and server config: `backend/src/index.ts`
-- Frontend app: `frontend/` (Next.js project)
-
-## Try asking
-
-- How do I configure Docker Compose to run the workers with multiple audio_worker instances?
-- Where is the backend API route that accepts ZIP uploads (which file/route should I look at)?
-- Can you add a Docker Compose override to run a local-only setup with an in-memory queue instead of RabbitMQ?
+MIT License
